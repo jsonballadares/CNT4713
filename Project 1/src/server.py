@@ -27,6 +27,7 @@ MAX_RECV_BYTES = 4096     # MAX_RECV_BYTES is the maximum number of bytes copied
 # appends the DELIMITER to the message, encodes it as UTF-8 bytes, 
 # and sends it over the socket using sendall(). so we move from application layer -> transport layer!
 # https://realpython.com/python-sockets/
+# https://docs.python.org/3/library/socket.html#socket.socket.sendall
 # ---------------------------------------------------------------------------
 def send_message(sock, text):
     try:
@@ -42,6 +43,7 @@ def send_message(sock, text):
 # gracefully by replacing invalid byte sequences with a placeholder character, 
 # ensuring that the server can continue processing commands without crashing due to encoding issues.
 # https://realpython.com/python-sockets/
+# https://docs.python.org/3/library/socket.html#socket.socket.recv 
 # ---------------------------------------------------------------------------
 def recv_commands(sock):
     buf = b""
