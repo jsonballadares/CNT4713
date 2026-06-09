@@ -5,6 +5,9 @@ import threading
 # ---------------------------------------------------------------------------
 # main() / entry point of program
 # python reads from top to bottom, so we define main() at the end of the file
+# main() reads the port supplied by the user via CLI, creates a listening socket, 
+# and waits for incoming connections. For each accepted connection, 
+# it spawns a new thread to handle the client's requests concurrently.
 # ---------------------------------------------------------------------------
 def main():
     if len(sys.argv) != 2:
@@ -36,7 +39,12 @@ def main():
 
     try:
         while True:
-            control_sock, addr = server_sock.accept()
+            # accept() this is a blocking call that waits until a client connects to the server. 
+            # which is why we spawn a new thread for each client, so that the server can continue 
+            # accepting new connections while existing clients are being handled.
+            control_sock, addr = server_sock.accept() 
+            # daemon option is used to ensure that the thread will automatically exit when the main program terminates
+            # preventing any potential resource leaks or hanging threads.
             t = threading.Thread(target=handle_client,
                                  args=(control_sock, addr, host),
                                  daemon=True)
