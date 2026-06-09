@@ -182,8 +182,6 @@ def client_thread(control_sock, addr):
                 data_sock.close()
             except OSError:
                 pass
-        
-
 
 # ---------------------------------------------------------------------------
 # main() / entry point of program
