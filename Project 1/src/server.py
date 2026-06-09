@@ -24,7 +24,7 @@ MAX_RECV_BYTES = 4096     # MAX_RECV_BYTES is the maximum number of bytes copied
 
 # ---------------------------------------------------------------------------
 # send_message() is a helper function that takes a socket that wraps around sock.sendall() 
-# appends the DELIMITER to the message, encodes it as UTF-8 bytes, 
+# appends the MSG_DELIMITER to the message, encodes it as UTF-8 bytes, 
 # and sends it over the socket using sendall(). so we move from application layer -> transport layer!
 # https://realpython.com/python-sockets/
 # https://docs.python.org/3/library/socket.html#socket.socket.sendall
@@ -135,7 +135,7 @@ def client_thread(control_sock, addr):
                 # ---- broadcast <message> ----
                 case "broadcast":
                     message = line[len("broadcast "):] if len(parts) > 1 else ""
-                    print("Broadcast requested by {}".format(username))
+                    print("Broadcast requested by {}".format(username or ""))
                     print("Message: {}".format(message))
                     broadcast_message("200\n\nBroadcast\n{}\n{}".format(username,
                                                                     message))
@@ -144,7 +144,7 @@ def client_thread(control_sock, addr):
                 case "private":
                     recipient = parts[1] if len(parts) > 1 else ""
                     message = " ".join(parts[2:]) if len(parts) > 2 else ""
-                    print("Private message from {} to {}".format(username,
+                    print("Private message from {} to {}".format(username or "",
                                                                  recipient))
                     with clients_lock:
                         target = clients.get(recipient)
@@ -158,7 +158,7 @@ def client_thread(control_sock, addr):
 
                 # ---- quit ----
                 case "quit":
-                    print("Quit requested by {}".format(username))
+                    print("Quit requested by {}".format(username or ""))
                     if data_sock is not None:
                         send_message(data_sock, "200")
                     break
@@ -211,7 +211,8 @@ def main():
     server_sock.bind(("", control_port)) # "" arg means accept connections from any network interface on the host machine, rather than restricting it to a specific IP or hardcoding localhost. this is basically (0.0.0.0).
     server_sock.listen(socket.SOMAXCONN) # handle as many pending connections as the system allows this really only matters when bursts of incoming connections come in. this prevents the server from being overwhelmed by too many simultaneous connection attempts.
     print("Awaiting connections...")
-
+    # this is the main loop of the server it will run indefinitely until the server is manually stopped (i.e. Ctrl+C) or by an unhandled exception. when the server is stopped,
+    # it will close the listening socket and exit gracefully as the finally block guarantees us.
     try:
         while True:
             # accept() this is a blocking call that waits until a client connects to the server. 
@@ -227,7 +228,6 @@ def main():
     except KeyboardInterrupt:
         print("\nServer shutting down.")
     finally:
-        # this is the main loop of the server it will run indefinitely until the server is manually stopped (i.e. Ctrl+C) or by an unhandled exception. when the server is stopped, it will close the listening socket and exit gracefully as the finally block guareentees us.
         server_sock.close()
 
 # ---------------------------------------------------------------------------
