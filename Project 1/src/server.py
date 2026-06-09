@@ -3,15 +3,16 @@ import sys
 import threading
 
 # ---------------------------------------------------------------------------
-# clients serves as our shared memory amongs threads
+# clients serves as our shared memory among threads
 # dictionaries are not thread safe by default in python
 # https://docs.python.org/3/library/threadsafety.html
+# https://docs.python.org/3/howto/free-threading-python.html
 # ---------------------------------------------------------------------------
-clients = {}                       # username -> {"control": socket, "data": socket} at runtime our dict should looke like so
+clients = {}                       # username -> {"control": socket, "data": socket} at runtime our dict should look like so
 clients_lock = threading.Lock()    # this is a mutex. protects the dict across threads without this we can run into memory corruption unexpected behavior race conditions etc.
 
 # ---------------------------------------------------------------------------
-# b"\x00" is the literarl represenation of a null byte utilized as a DELIMITER we define for TCP to indicate the end of a message. 
+# b"\x00" is the literal representation of a null byte utilized as a DELIMITER we define for TCP to indicate the end of a message. 
 # this is necessary because TCP is a stream-oriented protocol, and does not preserve message boundaries. 
 # TCP guarantees that data will be delivered in order and without duplication, but it does not guarantee that messages will be delivered in the
 # same chunks as they were sent. By using a DELIMITER, we can ensure that the receiver can correctly parse the incoming data into discrete messages this is called framing.
@@ -19,7 +20,7 @@ clients_lock = threading.Lock()    # this is a mutex. protects the dict across t
 # ---------------------------------------------------------------------------
 MSG_DELIMITER = b"\x00"   # server -> client: messages are multi-line, NUL-framed
 CMD_DELIMITER = b"\n"     # client -> server: commands are single-line, newline-framed
-MAX_RECV_BYTES = 4096.    # MAX_RECV_BYTES is the maximum number of bytes copied out of the kernel's TCP receive buffer per recv() call.
+MAX_RECV_BYTES = 4096     # MAX_RECV_BYTES is the maximum number of bytes copied out of the kernel's TCP receive buffer per recv() call.
 
 # ---------------------------------------------------------------------------
 # send_message() is a helper function that takes a socket that wraps around sock.sendall() 
@@ -57,12 +58,12 @@ def recv_commands(sock):
             yield line.decode("utf-8", "replace").strip()
 
 # ---------------------------------------------------------------------------
-# recv_commands() is a helper function that takes a text message and an optional exclude username,
+# broadcast_message() is a helper function that takes a text message and an optional exclude username,
 # it iterates through the clients dictionary, sending the message to all connected clients except the one specified in the exclude parameter. 
 # this is used for broadcasting messages to all clients except the sender, such as when a user joins or leaves the chat, or 
 # when a user sends a broadcast message. the clients_lock is used to ensure thread safety when accessing the shared clients dictionary across multiple threads.
 # ---------------------------------------------------------------------------
-def broadcast_msg(text, exclude=None):
+def broadcast_message(text, exclude=None):
     with clients_lock:
         targets = [info["data"] for user, info in clients.items() if user != exclude]
     for sock in targets:
@@ -119,7 +120,7 @@ def client_thread(control_sock, addr):
                                              "data": data_sock}
                     send_message(data_sock, "200")
                     # Join notification broadcast to the other users
-                    broadcast_msg("200\n\njoin\n{}".format(username),
+                    broadcast_message("200\n\njoin\n{}".format(username),
                                   exclude=username)
 
                 # ---- who ----
@@ -134,7 +135,7 @@ def client_thread(control_sock, addr):
                     message = line[len("broadcast "):] if len(parts) > 1 else ""
                     print("Broadcast requested by {}".format(username))
                     print("Message: {}".format(message))
-                    broadcast_msg("200\n\nBroadcast\n{}\n{}".format(username,
+                    broadcast_message("200\n\nBroadcast\n{}\n{}".format(username,
                                                                     message))
 
                 # ---- private <username> <message> ----
@@ -169,7 +170,7 @@ def client_thread(control_sock, addr):
         if username is not None:
             with clients_lock:
                 clients.pop(username, None)
-            broadcast_msg("200\n\nleave\n{}".format(username))
+            broadcast_message("200\n\nleave\n{}".format(username))
         try:
             control_sock.close()
         except OSError:
