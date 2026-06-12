@@ -114,7 +114,9 @@ def main():
             # stdin closes (e.g. piped input runs out)
             # https://docs.python.org/3/library/functions.html#input
             line = input().strip()
-        except EOFError:
+        except (EOFError, KeyboardInterrupt):
+            # ctrl+c or end of piped input: leave the loop and clean up
+            print() # advnace to a new line after ctrl+c, otherwise the prompt appears on the same line as ^C
             break
         if not line:
             continue

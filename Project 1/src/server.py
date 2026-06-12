@@ -154,9 +154,15 @@ def main():
     # https://docs.python.org/3/library/socket.html#socket.socket.accept
     # daemon threads exit automatically when the main program does
     # https://docs.python.org/3/library/threading.html#threading.Thread
-    while True:
-        conn, addr = server.accept()
-        threading.Thread(target=handle_client, args=(conn,), daemon=True).start()
+    try:
+        while True:
+            conn, addr = server.accept()
+            threading.Thread(target=handle_client, args=(conn,), daemon=True).start()
+    except KeyboardInterrupt:
+        # ctrl+c lands here instead of printing a traceback
+        print("\nServer shutting down.")
+    finally:
+        server.close()
 
 if __name__ == "__main__":
     main()
