@@ -15,7 +15,6 @@ quit_event = threading.Event()
 # message types the server can push to us because of OTHER users' commands
 TYPES = ("Broadcast", "Private", "join", "leave")
 
-
 def send_cmd(sock, line):
     # commands are single lines ending in "\n"
     # https://docs.python.org/3/library/socket.html#socket.socket.sendall
@@ -23,7 +22,6 @@ def send_cmd(sock, line):
         sock.sendall((line + "\n").encode())
     except OSError:
         print("500 status code received.")
-
 
 def recv_lines(sock):
     # yields one line at a time. tcp is a byte stream, so recv() can return
@@ -44,7 +42,6 @@ def recv_lines(sock):
             line, buf = buf.split(b"\n", 1)
             yield line.decode()
 
-
 def show_delivery(mtype, lines):
     # messages caused by other users. the first data line says what it is.
     # next(lines, default) pulls one more line out of the generator
@@ -63,7 +60,6 @@ def show_delivery(mtype, lines):
         next(lines, "")   # username line, the pdf output shows nothing for these
     else:
         print("200 status code received.")
-
 
 def handle_message(status, lines):
     if status != "200":
@@ -94,7 +90,6 @@ def handle_message(status, lines):
         # nothing pending, so this was pushed by another user's command
         show_delivery(next(lines, None), lines)
 
-
 def reader(sock):
     # runs in the background printing whatever arrives on the data socket.
     # needed because broadcasts/privates can show up at any time while the
@@ -110,7 +105,6 @@ def reader(sock):
         next(lines, None)            # skip the empty line after the status
         handle_message(status, lines)
     quit_event.set()
-
 
 def main():
     print("Starting client...")
@@ -184,7 +178,6 @@ def main():
     for sock in (data, control):
         if sock:
             sock.close()
-
 
 if __name__ == "__main__":
     main()

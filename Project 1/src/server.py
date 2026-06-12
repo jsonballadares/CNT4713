@@ -8,7 +8,6 @@ import threading
 clients = {}
 clients_lock = threading.Lock()
 
-
 def send_msg(sock, status, *data):
     # responses follow the format from the pdf:
     # status code, empty line, then the data section if there is one.
@@ -26,14 +25,12 @@ def send_msg(sock, status, *data):
     except OSError:
         pass
 
-
 def broadcast(status, *data, exclude=None):
     # send one message to every logged in user (except 'exclude')
     with clients_lock:
         socks = [c["data"] for name, c in clients.items() if name != exclude]
     for s in socks:
         send_msg(s, status, *data)
-
 
 def handle_client(control_sock):
     # one thread per client. commands come in on the control socket,
@@ -134,7 +131,6 @@ def handle_client(control_sock):
         if data_sock:
             data_sock.close()
 
-
 def main():
     # sys.argv holds the command line args: https://docs.python.org/3/library/sys.html#sys.argv
     if len(sys.argv) != 2:
@@ -161,7 +157,6 @@ def main():
     while True:
         conn, addr = server.accept()
         threading.Thread(target=handle_client, args=(conn,), daemon=True).start()
-
 
 if __name__ == "__main__":
     main()
