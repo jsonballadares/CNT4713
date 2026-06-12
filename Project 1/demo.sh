@@ -4,25 +4,36 @@
 #   top right    = bob   (the receiving client)
 #   bottom right = alice (the sending client)
 #
-# usage:
+# usage (from anywhere):
 #   ./demo.sh           run with default pacing (3s between commands)
 #   DELAY=6 ./demo.sh   slower pacing, e.g. while narrating a recording
 #
-# requires tmux (macOS: brew install tmux). run from the folder that
-# contains server.py and client.py. detach/quit the session with: Ctrl+b d
+# requires tmux (macOS: brew install tmux).
+# expects server.py / client.py either next to this script or in ./src.
+# detach/quit the session with: Ctrl+b d
 
 SESSION=chatdemo
 PORT=8991
 DELAY=${DELAY:-3}
 PY=${PY:-python3}
 
-# start fresh
-tmux kill-session -t $SESSION 2>/dev/null
+# find the folder with the code, relative to where this script lives
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/server.py" ]; then
+    SRC="$SCRIPT_DIR"
+elif [ -f "$SCRIPT_DIR/src/server.py" ]; then
+    SRC="$SCRIPT_DIR/src"
+else
+    echo "error: cannot find server.py (looked in '$SCRIPT_DIR' and '$SCRIPT_DIR/src')"
+    exit 1
+fi
+echo "using code in: $SRC"
 
-# 1 window, 3 panes: 0 = left (server), 1 = top right (bob), 2 = bottom right (alice)
-tmux new-session  -d -s $SESSION
-tmux split-window -h -t $SESSION:0
-tmux split-window -v -t $SESSION:0.1
+# start fresh; every pane starts inside $SRC (-c sets the start directory)
+tmux kill-session -t $SESSION 2>/dev/null
+tmux new-session  -d -s $SESSION -c "$SRC"
+tmux split-window -h -t $SESSION:0 -c "$SRC"
+tmux split-window -v -t $SESSION:0.1 -c "$SRC"
 tmux select-pane  -t $SESSION:0.0 -T "SERVER"
 tmux select-pane  -t $SESSION:0.1 -T "BOB (receiver)"
 tmux select-pane  -t $SESSION:0.2 -T "ALICE (sender)"
