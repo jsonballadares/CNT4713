@@ -7,6 +7,12 @@ Jason Balladares - 5760817
 Mahadi Rahman - <Panther-ID>
 Phoenix Depaz - <Panther-ID>
 
+Demo
+----
+https://github.com/user-attachments/assets/a455892b-e7fc-45d2-a7b2-8d6d4874e1ba
+
+
+
 Files
 -----
 server.py  -  the chat server
