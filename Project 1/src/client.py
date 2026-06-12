@@ -9,10 +9,7 @@ pending = []
 # set when the server confirms our quit (or the connection dies) so the
 # main input loop knows to stop
 # https://docs.python.org/3/library/threading.html#event-objects
-quit_event = threading.Event()
-
-# message types the server can push to us because of OTHER users' commands
-TYPES = ("Broadcast", "Private", "join", "leave")
+quit = threading.Event()
 
 def send_cmd(sock, line):
     # commands are single lines ending in "\n"
@@ -75,10 +72,11 @@ def handle_message(status, lines):
         print("200 status code received. Message sent.")
     elif cmd == "quit":
         print("200 status code received.")
-        quit_event.set()
+        quit.set()
     elif cmd == "who":
         users = next(lines, "")
-        if users in TYPES:
+        if users in ("Broadcast", "Private", "join", "leave"):
+            # message types the server can push to us because of OTHER users' commands
             # a broadcast/private arrived before our who reply, so this
             # message is not ours. handle it and keep waiting for who
             pending.insert(0, "who")
@@ -103,14 +101,14 @@ def reader(sock):
             continue
         next(lines, None)            # skip the empty line after the status
         handle_message(status, lines)
-    quit_event.set()
+    quit.set()
 
 def main():
     print("Starting client...")
     control = None
     data = None
 
-    while not quit_event.is_set():
+    while not quit.is_set():
         try:
             # input() blocks for one line of stdin and raises EOFError when
             # stdin closes (e.g. piped input runs out)
@@ -155,7 +153,6 @@ def main():
                 threading.Thread(target=reader, args=(data,), daemon=True).start()
             else:
                 print("500 status code received.")
-
         elif cmd in ("login", "who", "broadcast", "private", "quit"):
             if control is None or data is None:
                 print("Not connected. Use: connect <ip> <port>")
@@ -168,9 +165,8 @@ def main():
             send_cmd(control, line)
             if cmd == "quit":
                 # give the reader a moment to print the final 200
-                quit_event.wait(timeout=5)
+                quit.wait(timeout=5)
                 break
-
         else:
             print("Unknown command")
 
