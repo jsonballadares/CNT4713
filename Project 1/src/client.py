@@ -1,5 +1,4 @@
 import socket
-import sys
 import threading
 
 # commands waiting for a plain status reply (login/who/private/quit).
@@ -42,7 +41,7 @@ def recv_lines(sock):
             line, buf = buf.split(b"\n", 1)
             yield line.decode()
 
-def show_delivery(mtype, lines):
+def show_message(mtype, lines):
     # messages caused by other users. the first data line says what it is.
     # next(lines, default) pulls one more line out of the generator
     # https://docs.python.org/3/library/functions.html#next
@@ -83,12 +82,12 @@ def handle_message(status, lines):
             # a broadcast/private arrived before our who reply, so this
             # message is not ours. handle it and keep waiting for who
             pending.insert(0, "who")
-            show_delivery(users, lines)
+            show_message(users, lines)
         else:
             print(f"200 status code received. Users currently connected: {users}")
     else:
         # nothing pending, so this was pushed by another user's command
-        show_delivery(next(lines, None), lines)
+        show_message(next(lines, None), lines)
 
 def reader(sock):
     # runs in the background printing whatever arrives on the data socket.
