@@ -4,7 +4,9 @@ CNT4713 - Project 1 - Chat Project
 Group Members
 -------------
 Jason Balladares - 5760817
+
 Mahadi Rahman - <Panther-ID>
+
 Phoenix Depaz - <Panther-ID>
 
 Demo
