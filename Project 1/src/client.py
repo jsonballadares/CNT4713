@@ -116,7 +116,7 @@ def main():
             line = input().strip()
         except (EOFError, KeyboardInterrupt):
             # ctrl+c or end of piped input: leave the loop and clean up
-            print() # advnace to a new line after ctrl+c, otherwise the prompt appears on the same line as ^C
+            print("Server socket closed.") # advance to a new line after ctrl+c, otherwise the prompt appears on the same line as ^C
             break
         if not line:
             continue
