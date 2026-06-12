@@ -1,11 +1,11 @@
-CNT4713 Chat Project
+CNT4713 - Project 1 - Chat Project
 ====================
 
 Group Members
 -------------
 Jason Balladares - 5760817
-Mahadi Rahman - <Panther ID>
-Phoenix Depaz - <Panther ID>
+Mahadi Rahman - <Panther-ID>
+Phoenix Depaz - <Panther-ID>
 
 Files
 -----
@@ -58,32 +58,21 @@ How to Run
  
 Client Commands
 ---------------
-connect <ip> <port>            connect to the server (do this first)
+connect <ip> <control_port>       connect to the server (do this first)
 login <username>               register a username with the server
 who                            list all connected usernames
 broadcast <message>            send a message to everyone
 private <username> <message>   send a message to one user
 quit                           disconnect and exit
  
-Example Session (two clients)
------------------------------
-Client 1:                          Client 2:
-  connect 127.0.0.1 8991             connect 127.0.0.1 8991
-  login bob                          login alice
-                                     who
-                                     broadcast Hello all!
-  (sees the broadcast)               private bob Lets talk
-  (sees the private message)         quit
-  quit
- 
 Notes
 -----
 - The server must be started before any client tries to connect.
-- The port number on the connect command must match the port the
-  server was started with.
+- The port number on the connect command must match the control port 
+  the server was started with.
 - To run the server and clients on different machines, replace
   127.0.0.1 with the server machine's IP address and make sure the
-  control port is reachable (firewall).
+  control port is reachable via network as firewall may block.
 - Usernames must be unique; logging in with a name that is taken
   returns a 500 and you can try a different name.
 - Stop the server with Ctrl+C when finished.

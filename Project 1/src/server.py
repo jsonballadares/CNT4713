@@ -145,8 +145,8 @@ def main():
     # lets us restart the server right away without "address already in use"
     # https://docs.python.org/3/library/socket.html#socket.socket.setsockopt
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(("", int(sys.argv[1])))   # control port from the command line
-    server.listen(5)
+    server.bind(("", int(sys.argv[1])))   # control port from the command line & "" means bind to all available network interfaces.
+    server.listen(socket.SOMAXCONN) # handle as many pending connections as the system allows this really only matters when bursts of incoming connections come in. this prevents the server from being overwhelmed by too many simultaneous connection attempts.
     print("Awaiting connections...")
 
     # accept() blocks until someone connects and returns a NEW socket for that
