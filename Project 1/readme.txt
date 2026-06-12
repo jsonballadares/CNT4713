@@ -1,10 +1,89 @@
-GROUP MEMBERS & IDS
+CNT4713 Chat Project
+====================
+
+Group Members
 -------------
-Name: Jason Balladares 
-ID: 5760817
+Jason Balladares - 5760817
+Mahadi Rahman - <Panther ID>
+Phoenix Depaz - <Panther ID>
 
-Name: Phoenix Depaz
-ID:
-
-Name: Mahadi Rahman
-ID:
+Files
+-----
+server.py  -  the chat server
+client.py  -  the chat client
+ 
+Requirements
+------------
+- Python 3.6+
+- Standard library only (socket, sys, threading). No external packages per instructions
+ 
+How to Run
+----------
+1. Start the server first. Pass it the TCP control port as the only
+   command line argument:
+ 
+       python server.py 8991
+ 
+   The server prints:
+ 
+       Starting server...
+       Creating server socket
+       Awaiting connections...
+ 
+   and then waits. Leave this terminal open.
+ 
+2. In a separate terminal, start a client (no arguments):
+ 
+       python client.py
+ 
+   The client prints "Starting client..." and waits for commands.
+ 
+3. In the client, connect to the server using the server's IP address
+   and the control port from step 1. If everything is running on the
+   same machine, use 127.0.0.1:
+ 
+       connect 127.0.0.1 8991
+ 
+   The server responds with the data port and the client connects to it
+   automatically:
+ 
+       200 status code received. Starting data connection on port <DATA PORT>
+ 
+4. Log in with a username (must be unique among connected users):
+ 
+       login alice
+ 
+5. You can open more terminals and repeat steps 2-4 to connect more
+   clients (e.g. login bob in a second client).
+ 
+Client Commands
+---------------
+connect <ip> <port>            connect to the server (do this first)
+login <username>               register a username with the server
+who                            list all connected usernames
+broadcast <message>            send a message to everyone
+private <username> <message>   send a message to one user
+quit                           disconnect and exit
+ 
+Example Session (two clients)
+-----------------------------
+Client 1:                          Client 2:
+  connect 127.0.0.1 8991             connect 127.0.0.1 8991
+  login bob                          login alice
+                                     who
+                                     broadcast Hello all!
+  (sees the broadcast)               private bob Lets talk
+  (sees the private message)         quit
+  quit
+ 
+Notes
+-----
+- The server must be started before any client tries to connect.
+- The port number on the connect command must match the port the
+  server was started with.
+- To run the server and clients on different machines, replace
+  127.0.0.1 with the server machine's IP address and make sure the
+  control port is reachable (firewall).
+- Usernames must be unique; logging in with a name that is taken
+  returns a 500 and you can try a different name.
+- Stop the server with Ctrl+C when finished.
