@@ -75,4 +75,7 @@ Notes
   control port is reachable via network as firewall may block.
 - Usernames must be unique; logging in with a name that is taken
   returns a 500 and you can try a different name.
+- demo.sh will be used to showcase the project running and the validator
+  serves as a regression for extending the code with confidence.
+  use chmod +x validator.sh or chmod +x demo.sh then ./demo.sh or ./validator.sh
 - Stop the server with Ctrl+C when finished.
