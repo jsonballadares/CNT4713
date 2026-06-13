@@ -1,19 +1,6 @@
-CNT4713 - Project 1 - Chat Project
-====================
-
-Group Members
--------------
-Jason Balladares - 5760817
-
-Mahadi Rahman - 6406575
-
-Phoenix Depaz - 6234251
-
 Demo
 ----
 https://github.com/user-attachments/assets/a455892b-e7fc-45d2-a7b2-8d6d4874e1ba
-
-
 
 Files
 -----
