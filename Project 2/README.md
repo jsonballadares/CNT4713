@@ -65,20 +65,35 @@ quit                  disconnect and exit
 Example Session
 ---------------
 > connect 127.0.0.1 8991
+
 200 status code received. Starting data connection on port 49215
+
 > login alice
+
 200 status code received. Login successful
+
 > list
+
 200 status code received. Files: test.txt
+
 > stor myfile.txt
+
 200 status code received. File Sent.
+
 > list
+
 200 status code received. Files: myfile.txt, test.txt
+
 > retr test.txt
+
 File retrieved.
+
 > dele test.txt
+
 200 status code received. File deleted.
+
 > quit
+
 200 status code received.
 
 Notes
