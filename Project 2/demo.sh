@@ -6,10 +6,14 @@
 # usage (from anywhere):
 #   ./demo.sh           run with default pacing (3s between commands)
 #   DELAY=6 ./demo.sh   slower pacing, e.g. while narrating a recording
+#   KEEP=1 ./demo.sh    keep the demo files afterward (skip cleanup)
 #
 # requires tmux (macOS: brew install tmux).
 # expects server.py / client.py either next to this script or in ./src.
 # detach/quit the session with: Ctrl+b d
+#
+# everything this script creates (myfile.txt, server_files/, the demo
+# download) is removed on exit so each run starts from a clean slate.
 
 SESSION=ftdemo
 PORT=8991
@@ -28,9 +32,23 @@ else
 fi
 echo "using code in: $SRC"
 
+# cleanup() removes everything the demo created and kills the tmux session.
+# it runs on ANY exit (normal, Ctrl+C, or error) via the trap below, so the
+# demo leaves no files behind. set KEEP=1 to skip it.
+cleanup() {
+    tmux kill-session -t $SESSION 2>/dev/null
+    if [ -z "$KEEP" ]; then
+        rm -f "$SRC/myfile.txt"
+        rm -rf "$SRC/server_files"
+        echo "cleaned up demo files."
+    fi
+}
+trap cleanup EXIT INT TERM
+
 # the client uploads myfile.txt and downloads test.txt, so make sure both
 # exist: myfile.txt next to the client (to upload), test.txt pre-seeded in
 # the server's shared directory (to download and then delete)
+rm -rf "$SRC/server_files"
 echo "this is myfile.txt, uploaded by the demo client" > "$SRC/myfile.txt"
 mkdir -p "$SRC/server_files"
 echo "this is test.txt, pre-seeded on the server" > "$SRC/server_files/test.txt"
@@ -71,5 +89,6 @@ tmux set -t $SESSION pane-border-status top
   tmux send-keys -t $SESSION:0.1 "quit" C-m
 ) &
 
-# attach so the whole scenario plays out on screen (this is what you record)
+# attach so the whole scenario plays out on screen (this is what you record).
+# when you detach or the session ends, the trap above cleans everything up.
 tmux attach -t $SESSION
