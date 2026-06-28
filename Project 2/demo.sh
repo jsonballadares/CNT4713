@@ -38,8 +38,9 @@ echo "using code in: $SRC"
 cleanup() {
     tmux kill-session -t $SESSION 2>/dev/null
     if [ -z "$KEEP" ]; then
-        rm -f "$SRC/myfile.txt"
-        rm -rf "$SRC/server_files"
+        rm -f "$SRC/myfile.txt"      # the file the client uploaded
+        rm -f "$SRC/test.txt"        # the file the client downloaded via retr
+        rm -rf "$SRC/server_files"   # the server's shared storage dir
         echo "cleaned up demo files."
     fi
 }
