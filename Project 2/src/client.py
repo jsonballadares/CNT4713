@@ -1,29 +1,15 @@
 import os
 import socket
-import threading
-
-# commands waiting for a plain status reply (login/dele/quit).
-# the server's "200" replies all look the same on the wire, so we have to
-# remember what we asked for to know what to print
-pending = []
-
-# set when the server confirms our quit (or the connection dies) so the
-# main input loop knows to stop
-# https://docs.python.org/3/library/threading.html#event-objects
-quit = threading.Event()
-
-# stor/retr need to act on the response (open a file connection) on the
-# reader thread, so the main thread hands the pending filename across here
-transfer = {}
-
 
 def send_cmd(sock, line):
     # commands are single lines ending in "\n"
     # https://docs.python.org/3/library/socket.html#socket.socket.sendall
     try:
         sock.sendall((line + "\n").encode())
+        return True
     except OSError:
         print("500 status code received.")
+        return False
 
 
 def recv_lines(sock):
@@ -46,9 +32,21 @@ def recv_lines(sock):
             yield line.decode()
 
 
+def read_status(lines):
+    # every text response starts "status \n <empty line>", so consume both
+    # and hand back the status. data lines (if any) are read by the caller.
+    status = next(lines, None)
+    if status is None:
+        return None          # connection closed
+    next(lines, None)        # the <EMPTY LINE> from the message format
+    return status.strip()
+
+
 def stor(ip, port, filename):
     # connect to the file port the server gave us, stream the file, then
     # close the connection. closing tells the server the file is complete.
+    # https://www.cs.colostate.edu/helpdocs/ftp.html
+    # https://medium.com/@CHICHEEE/build-a-simple-file-transfer-system-using-python-network-programming-project-c9962cf238c0
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, port))
@@ -67,6 +65,8 @@ def stor(ip, port, filename):
 def retr(ip, port, filename):
     # connect to the file port the server gave us and read bytes until the
     # server closes the connection (close = end of file), saving to disk.
+    # https://www.cs.colostate.edu/helpdocs/ftp.html
+    # https://medium.com/@CHICHEEE/build-a-simple-file-transfer-system-using-python-network-programming-project-c9962cf238c0
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, port))
@@ -82,69 +82,14 @@ def retr(ip, port, filename):
         return False
 
 
-def handle_message(status, lines, server_ip):
-    if status != "200":
-        cmd = pending.pop(0) if pending else None
-        print("500 status code received.")
-        return
-
-    cmd = pending.pop(0) if pending else None
-
-    if cmd == "login":
-        print("200 status code received. Login successful")
-    elif cmd == "dele":
-        print("200 status code received. File deleted.")
-    elif cmd == "quit":
-        print("200 status code received.")
-        quit.set()
-    elif cmd == "list":
-        files = next(lines, "")
-        print(f"200 status code received. Files: {files}")
-    elif cmd == "stor":
-        # server replied with the file port; stream the file up to it
-        port = int(next(lines, "0"))
-        filename = transfer.get("stor", "")
-        if stor(server_ip, port, filename):
-            # the server sends a second 200 once it has the whole file
-            pending.insert(0, "stor_done")
-        else:
-            print("500 status code received.")
-    elif cmd == "stor_done":
-        print("200 status code received. File Sent.")
-    elif cmd == "retr":
-        # server replied with the file port; download the file from it
-        port = int(next(lines, "0"))
-        filename = transfer.get("retr", "")
-        if retr(server_ip, port, filename):
-            print("File retrieved.")
-        else:
-            print("500 status code received.")
-    else:
-        print("200 status code received.")
-
-
-def reader(sock, server_ip):
-    # runs in the background reading the persistent data connection.
-    # message format from the pdf: status line, empty line, data if any
-    lines = recv_lines(sock)
-    while True:
-        status = next(lines, None)
-        if status is None:
-            break
-        if status == "":
-            continue
-        next(lines, None)            # skip the empty line after the status
-        handle_message(status.strip(), lines, server_ip)
-    quit.set()
-
-
 def main():
     print("Starting client...")
     control = None
     data = None
+    lines = None         # line buffer over the persistent data connection
     server_ip = None
 
-    while not quit.is_set():
+    while True:
         try:
             # input() blocks for one line of stdin and raises EOFError when
             # stdin closes (e.g. piped input runs out)
@@ -186,9 +131,7 @@ def main():
                 print(f"200 status code received. Starting data connection on port {data_port}")
                 data = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 data.connect((server_ip, data_port))
-                # daemon thread exits automatically with the main program
-                # https://docs.python.org/3/library/threading.html#threading.Thread
-                threading.Thread(target=reader, args=(data, server_ip), daemon=True).start()
+                lines = recv_lines(data)
             else:
                 print("500 status code received.")
 
@@ -196,19 +139,82 @@ def main():
             if control is None or data is None:
                 print("Not connected. Use: connect <ip> <port>")
                 continue
-            # stor/retr need a local filename present before we send, and the
-            # reader thread needs to know it to open the file connection
-            if cmd in ("stor", "retr"):
+
+            if cmd == "login":
+                if not send_cmd(control, line):
+                    continue
+                status = read_status(lines)
+                if status == "200":
+                    print("200 status code received. Login successful")
+                else:
+                    print("500 status code received.")
+
+            elif cmd == "list":
+                if not send_cmd(control, line):
+                    continue
+                status = read_status(lines)
+                if status == "200":
+                    files = next(lines, "")
+                    print(f"200 status code received. Files: {files}")
+                else:
+                    print("500 status code received.")
+
+            elif cmd == "stor":
                 filename = parts[1] if len(parts) > 1 else ""
-                if cmd == "stor" and not os.path.isfile(filename):
+                # the file to upload must exist locally before we ask
+                if not os.path.isfile(filename):
                     print("500 status code received.")
                     continue
-                transfer[cmd] = filename
-            # remember what we asked so the reader knows how to print the reply
-            pending.append(cmd)
-            send_cmd(control, line)
-            if cmd == "quit":
-                quit.wait(timeout=5)
+                if not send_cmd(control, line):
+                    continue
+                status = read_status(lines)
+                if status != "200":
+                    print("500 status code received.")
+                    continue
+                # server handed us the port for the one-off file connection
+                port = int(next(lines, "0"))
+                if not stor(server_ip, port, filename):
+                    print("500 status code received.")
+                    continue
+                # server confirms once it has received the whole file
+                status = read_status(lines)
+                if status == "200":
+                    print("200 status code received. File Sent.")
+                else:
+                    print("500 status code received.")
+
+            elif cmd == "retr":
+                filename = parts[1] if len(parts) > 1 else ""
+                if not send_cmd(control, line):
+                    continue
+                status = read_status(lines)
+                if status != "200":
+                    # file does not exist on the server
+                    print("500 status code received.")
+                    continue
+                port = int(next(lines, "0"))
+                # no status follows a successful transfer - the file
+                # connection closing IS the end-of-file signal, so this
+                # line is printed by us, not echoed from the server
+                if retr(server_ip, port, filename):
+                    print("File retrieved.")
+                else:
+                    print("500 status code received.")
+
+            elif cmd == "dele":
+                if not send_cmd(control, line):
+                    continue
+                status = read_status(lines)
+                if status == "200":
+                    print("200 status code received. File deleted.")
+                else:
+                    print("500 status code received.")
+
+            elif cmd == "quit":
+                if send_cmd(control, line):
+                    status = read_status(lines)
+                    if status == "200":
+                        print("200 status code received.")
                 break
 
         else:
@@ -216,7 +222,10 @@ def main():
 
     for sock in (data, control):
         if sock:
-            sock.close()
+            try:
+                sock.close()
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":
