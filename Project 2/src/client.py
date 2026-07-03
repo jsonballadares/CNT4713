@@ -46,7 +46,7 @@ def recv_lines(sock):
             yield line.decode()
 
 
-def do_stor(ip, port, filename):
+def stor(ip, port, filename):
     # connect to the file port the server gave us, stream the file, then
     # close the connection. closing tells the server the file is complete.
     try:
@@ -64,7 +64,7 @@ def do_stor(ip, port, filename):
         return False
 
 
-def do_retr(ip, port, filename):
+def retr(ip, port, filename):
     # connect to the file port the server gave us and read bytes until the
     # server closes the connection (close = end of file), saving to disk.
     try:
@@ -104,7 +104,7 @@ def handle_message(status, lines, server_ip):
         # server replied with the file port; stream the file up to it
         port = int(next(lines, "0"))
         filename = transfer.get("stor", "")
-        if do_stor(server_ip, port, filename):
+        if stor(server_ip, port, filename):
             # the server sends a second 200 once it has the whole file
             pending.insert(0, "stor_done")
         else:
@@ -115,7 +115,7 @@ def handle_message(status, lines, server_ip):
         # server replied with the file port; download the file from it
         port = int(next(lines, "0"))
         filename = transfer.get("retr", "")
-        if do_retr(server_ip, port, filename):
+        if retr(server_ip, port, filename):
             print("File retrieved.")
         else:
             print("500 status code received.")
