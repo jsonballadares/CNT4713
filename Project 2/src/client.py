@@ -11,7 +11,6 @@ def send_cmd(sock, line):
         print("500 status code received.")
         return False
 
-
 def recv_lines(sock):
     # yields one line at a time. tcp is a byte stream, so recv() can return
     # partial or multiple lines - buffer until we have a full one.
@@ -31,7 +30,6 @@ def recv_lines(sock):
             line, buf = buf.split(b"\n", 1)
             yield line.decode()
 
-
 def read_status(lines):
     # every text response starts "status \n <empty line>", so consume both
     # and hand back the status. data lines (if any) are read by the caller.
@@ -40,7 +38,6 @@ def read_status(lines):
         return None          # connection closed
     next(lines, None)        # the <EMPTY LINE> from the message format
     return status.strip()
-
 
 def stor(ip, port, filename):
     # connect to the file port the server gave us, stream the file, then
@@ -61,7 +58,6 @@ def stor(ip, port, filename):
     except OSError:
         return False
 
-
 def retr(ip, port, filename):
     # connect to the file port the server gave us and read bytes until the
     # server closes the connection (close = end of file), saving to disk.
@@ -80,7 +76,6 @@ def retr(ip, port, filename):
         return True
     except OSError:
         return False
-
 
 def main():
     print("Starting client...")
@@ -226,7 +221,6 @@ def main():
                 sock.close()
             except OSError:
                 pass
-
 
 if __name__ == "__main__":
     main()

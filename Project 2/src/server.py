@@ -13,7 +13,6 @@ clients_lock = threading.Lock()
 # created at startup if it does not already exist.
 FILE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server_files")
 
-
 def send_msg(sock, status, *data):
     # text responses follow the format from the pdf:
     # status code, empty line, then the data section if there is one.
@@ -31,7 +30,6 @@ def send_msg(sock, status, *data):
     except OSError:
         pass
 
-
 def open_file_port():
     # open a brand new listening socket for a single file transfer and return
     # (listener, port). per FTP, each stor/retr uses its own data connection
@@ -40,7 +38,6 @@ def open_file_port():
     listener.bind(("", 0))   # port 0 = OS picks a free port
     listener.listen(1)
     return listener, listener.getsockname()[1]
-
 
 def handle_client(control_sock):
     # one thread per client. commands come in on the control socket,
@@ -183,7 +180,6 @@ def handle_client(control_sock):
         if data_sock:
             data_sock.close()
 
-
 def main():
     # sys.argv holds the command line args: https://docs.python.org/3/library/sys.html#sys.argv
     if len(sys.argv) != 2:
@@ -219,7 +215,6 @@ def main():
         print("\nServer shutting down.")
     finally:
         server.close()
-
 
 if __name__ == "__main__":
     main()
