@@ -13,7 +13,7 @@ Notes
 -------------
 here is where we have the source code hosted w/more instructions: https://github.com/jsonballadares/CNT4713/tree/main/Project%202
 per the instructions on cavnas we will submit only the client.py server.py and readme.txt
-and provide the url to our demo video here w/wireshark commentary: https://drive.google.com/file/d/1jPJIntt18zuLnnRveCcC-nm2puJM-FK-/view?usp=sharing below are instructions copied from our github repo for your convenience.
+and provide the url to our demo video here w/wireshark commentary: https://drive.google.com/file/d/16QPuqwpU0pCRG1AGFlNbiH1jd_-Wmb6x/view?usp=sharing below are instructions copied from our github repo for your convenience.
 
 Requirements
 ------------
