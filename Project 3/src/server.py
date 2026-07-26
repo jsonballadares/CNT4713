@@ -13,7 +13,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 clients = {}
 clients_lock = threading.Lock()
 
-# RSA-OAEP padding used for every encrypt/decrypt in this project
+# RSA-OAEP padding used for every encrypt/decrypt in this project.
+# spec 3c calls for SHA256 to be used when producing the encrypted response
+# (the cipher text): OAEP uses SHA256 both as the message digest and inside
+# the MGF1 mask generation function, so every response the server encrypts is
+# built on a SHA256 hash of the message being protected.
 OAEP = padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
                     algorithm=hashes.SHA256(), label=None)
 
@@ -63,8 +67,9 @@ def build_message(status, *data_lines):
 
 
 def send_encrypted(sock, pub_key, status, *data_lines):
-    # encrypt a response with the recipient's public key and send it as
-    # one base64 line. all post-login server -> client traffic uses this.
+    # spec 3b(iv)/3c: encrypt the response with THIS client's public key and
+    # send it on the data socket as one base64 line. all post-login
+    # server -> client traffic uses this.
     if sock is None or pub_key is None:
         return
     try:
@@ -116,16 +121,19 @@ def handle_client(control_sock):
             if not raw:
                 continue
 
-            # the connect command is the only plaintext command - everything
-            # after it arrives encrypted with the server's public key
-            if raw.lower().startswith(b"connect"):
+            # the connect command is the only plaintext command (spec 3a) -
+            # everything after it arrives encrypted with the server's public
+            # key. only treat a line as connect before the data connection
+            # exists, so an encrypted line can never be mistaken for it.
+            if data_sock is None and raw.lower().startswith(b"connect"):
                 print("Connection requested. Creating data socket")
                 listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 listener.bind(("", 0))   # port 0 = OS picks a free port
                 listener.listen(1)
                 data_port = listener.getsockname()[1]
-                # response goes back on the control connection and now also
-                # carries the server's public key (spec 3a)
+                # spec 3a: the response goes back on the control connection
+                # and now carries the data port AND the server's public key:
+                #     200 / <EMPTY LINE> / <data port> / <public key>
                 send_plain(control_sock, "200", str(data_port), server_pem.strip())
                 data_sock, _ = listener.accept()
                 listener.close()
@@ -142,8 +150,17 @@ def handle_client(control_sock):
             parts = plines[0].split(" ")
             cmd = parts[0].lower()
 
+            # every command except login needs the client's public key, since
+            # spec 3b(iv) requires all responses after login to be encrypted.
+            # without it we cannot reply at all, so stop processing here
+            # rather than silently dropping a response.
+            if cmd != "login" and client_key is None:
+                continue
+
             if cmd == "login":
-                # login message format (spec 3b): login \n username \n <public key>
+                # spec 3b: the decrypted login message is three parts -
+                #     login / <username> / <public key>
+                # the server validates uniqueness and stores the client's key
                 uname = plines[1].strip() if len(plines) > 1 else ""
                 pem = "\n".join(plines[2:]).strip()
                 print(f"Login requested by: {uname}")

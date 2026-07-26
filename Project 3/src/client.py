@@ -11,11 +11,14 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 # what we asked for to know what to print
 pending = []
 
-# set when the server confirms our quit (or the connection dies)
+# set when the server confirms our quit (or the connection dies).
+# named quit_event rather than quit so it does not shadow the builtin.
 # https://docs.python.org/3/library/threading.html#event-objects
-quit = threading.Event()
+quit_event = threading.Event()
 
-# RSA-OAEP padding used for every encrypt/decrypt in this project
+# RSA-OAEP padding used for every encrypt/decrypt in this project.
+# spec 3c calls for SHA256 in producing the cipher text: OAEP uses SHA256 as
+# both the message digest and inside MGF1 mask generation.
 OAEP = padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
                     algorithm=hashes.SHA256(), label=None)
 ENC_CHUNK = 190   # max plaintext bytes per RSA-2048 OAEP block
@@ -26,6 +29,10 @@ DEC_CHUNK = 256   # ciphertext block size produced by RSA-2048
 priv_key = None
 pub_pem = None
 server_key = None
+
+# spec client steps 4-6: login must succeed before any other command, because
+# the server cannot encrypt a reply until it has stored our public key
+logged_in = False
 
 
 def encrypt_text(pub_key, text):
@@ -52,8 +59,8 @@ def decrypt_line(raw):
 
 
 def send_encrypted(sock, text):
-    # every post-connect command is encrypted with the server's public key
-    # and sent as a single base64 line on the control connection
+    # spec client step 6a: build the message, encrypt it with the SERVER's
+    # public key, and send it on the control connection as one base64 line
     try:
         sock.sendall(encrypt_text(server_key, text) + b"\n")
     except OSError:
@@ -115,12 +122,14 @@ def handle_message(text):
     # otherwise this is the reply to our own last command
     cmd = pending.pop(0) if pending else None
     if cmd == "login":
+        global logged_in
+        logged_in = True
         print("200 status code received. Login successful")
     elif cmd == "private":
         print("200 status code received. Message sent.")
     elif cmd == "quit":
         print("200 status code received.")
-        quit.set()
+        quit_event.set()
     elif cmd == "who":
         users = data[0] if data else ""
         print(f"200 status code received. Users currently connected: {users}")
@@ -136,7 +145,7 @@ def reader(sock):
         text = decrypt_line(raw.strip())
         if text is not None:
             handle_message(text)
-    quit.set()
+    quit_event.set()
 
 
 def main():
@@ -151,7 +160,7 @@ def main():
     control = None
     data = None
 
-    while not quit.is_set():
+    while not quit_event.is_set():
         try:
             # https://docs.python.org/3/library/functions.html#input
             line = input().strip()
@@ -172,7 +181,8 @@ def main():
                 control = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 control.connect((parts[1], int(parts[2])))
                 control.sendall((line + "\n").encode())
-                # reply is plaintext: "200\n\n<data port>\n<public key>\n"
+                # spec client step 3: the reply is plaintext (it is what
+                # delivers the server's key) - "200\n\n<data port>\n<key>\n"
                 # the PEM key spans multiple lines, so read until its
                 # END PUBLIC KEY footer arrives (spec client step 3)
                 buf = b""
@@ -201,9 +211,15 @@ def main():
             if control is None or data is None or server_key is None:
                 print("Not connected. Use: connect <ip> <port>")
                 continue
+            if cmd != "login" and not logged_in:
+                # without a successful login the server has no key to encrypt
+                # a reply with, so the command would never be answered
+                print("Not logged in. Use: login <username>")
+                continue
             if cmd == "login":
-                # spec login format: login \n username \n <our public key>,
-                # all encrypted with the server's public key
+                # spec client step 4: send the username AND our public key,
+                # all encrypted with the server's public key:
+                #     login / <username> / <public key>
                 uname = parts[1] if len(parts) > 1 else ""
                 payload = f"login\n{uname}\n{pub_pem}"
             else:
@@ -215,7 +231,7 @@ def main():
                 pending.append(cmd)
             send_encrypted(control, payload)
             if cmd == "quit":
-                quit.wait(timeout=5)
+                quit_event.wait(timeout=5)
                 break
 
         else:
