@@ -1,0 +1,7 @@
+a) TLS proves who the server is via a certificate signed by a trusted authority which the client verifies. Our protocol is devoid of such a mechanism. The server sends its public key in plaintext and the client trust what arrives.
+
+b) encryption allows for messages to be private but doesn't prove who sent them or if they were altered. the server decrypts everything so its not end to end. the key exchange isnt verified so the client trusts any key it recieves.
+
+c) one way we could think of was a man in the middle as the servers public key is sent in plaintext and the client trust whatever it gets. so someone can sit in the middle and swap their own key. neither side would be able to tell what happened from then.
+
+d) the client can have the servers key ahead of time / baked into the source code if the keys dont match there is a problem. the sender can start signing messages so the reciever checks for that to know who really sent the message. messages can be numbered so server can reject numbers it hasnt seen before.
