@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import socket
 import sys
 import threading
@@ -57,6 +58,14 @@ def decrypt_line(raw):
         return None
 
 
+def sha256_hex(text):
+    # spec 3c: the server computes the SHA256 hash of the message. the digest
+    # is appended to the encrypted response so the client receives it as
+    # cipher text along with the reply.
+    # https://docs.python.org/3/library/hashlib.html
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
 def build_message(status, *data_lines):
     # same response format as the chat project:
     # status code, empty line, then the data section if there is one
@@ -66,12 +75,17 @@ def build_message(status, *data_lines):
     return msg
 
 
-def send_encrypted(sock, pub_key, status, *data_lines):
+def send_encrypted(sock, pub_key, status, *data_lines, digest=None):
     # spec 3b(iv)/3c: encrypt the response with THIS client's public key and
     # send it on the data socket as one base64 line. all post-login
     # server -> client traffic uses this.
+    # when a digest is supplied it becomes the final line of the data section,
+    # so the SHA256 hash of the client's message is returned as cipher text
+    # (spec 3c). the client ignores this trailing line when displaying output.
     if sock is None or pub_key is None:
         return
+    if digest is not None:
+        data_lines = data_lines + (digest,)
     try:
         sock.sendall(encrypt_text(pub_key, build_message(status, *data_lines)) + b"\n")
     except OSError:
@@ -90,14 +104,14 @@ def send_plain(sock, status, *data_lines):
         pass
 
 
-def broadcast(status, *data_lines, exclude=None):
+def broadcast(status, *data_lines, exclude=None, digest=None):
     # send one message to every logged in user (except 'exclude'),
     # encrypted with each recipient's own public key
     with clients_lock:
         targets = [(c["data"], c["key"]) for name, c in clients.items()
                    if name != exclude]
     for sock, key in targets:
-        send_encrypted(sock, key, status, *data_lines)
+        send_encrypted(sock, key, status, *data_lines, digest=digest)
 
 
 def handle_client(control_sock):
@@ -146,6 +160,10 @@ def handle_client(control_sock):
                 continue
             print("Received encrypted message")
 
+            # spec 3c: hash the message we just decrypted; every response
+            # generated for it carries this digest inside the cipher text
+            digest = sha256_hex(text)
+
             plines = text.split("\n")
             parts = plines[0].split(" ")
             cmd = parts[0].lower()
@@ -177,28 +195,29 @@ def handle_client(control_sock):
                 if taken or key is None:
                     # name not unique or a component of the message is missing
                     if key is not None:
-                        send_encrypted(data_sock, key, "500")
+                        send_encrypted(data_sock, key, "500", digest=digest)
                     else:
                         send_plain(data_sock, "500")
                 else:
                     username = uname
                     client_key = key
-                    send_encrypted(data_sock, client_key, "200")
+                    send_encrypted(data_sock, client_key, "200", digest=digest)
                     # join notification broadcast to the other users
-                    broadcast("200", "join", username, exclude=username)
+                    broadcast("200", "join", username,
+                              exclude=username, digest=digest)
 
             elif cmd == "who":
                 print("Who requested. Sending users.")
                 with clients_lock:
                     users = ", ".join(clients)
-                send_encrypted(data_sock, client_key, "200", users)
+                send_encrypted(data_sock, client_key, "200", users, digest=digest)
 
             elif cmd == "broadcast":
                 message = plines[0][len("broadcast "):] if len(parts) > 1 else ""
                 print(f"Broadcast requested by {username or ''}")
                 print(f"Message: {message}")
                 # goes to everyone, including the sender, each with their own key
-                broadcast("200", "Broadcast", username, message)
+                broadcast("200", "Broadcast", username, message, digest=digest)
 
             elif cmd == "private":
                 recipient = parts[1] if len(parts) > 1 else ""
@@ -207,19 +226,20 @@ def handle_client(control_sock):
                 with clients_lock:
                     target = clients.get(recipient)
                 if target is None:
-                    send_encrypted(data_sock, client_key, "500")
+                    send_encrypted(data_sock, client_key, "500", digest=digest)
                 else:
                     send_encrypted(target["data"], target["key"],
-                                   "200", "Private", username, message)
-                    send_encrypted(data_sock, client_key, "200")
+                                   "200", "Private", username, message,
+                                   digest=digest)
+                    send_encrypted(data_sock, client_key, "200", digest=digest)
 
             elif cmd == "quit":
                 print(f"Quit requested by {username or ''}")
-                send_encrypted(data_sock, client_key, "200")
+                send_encrypted(data_sock, client_key, "200", digest=digest)
                 return
 
             else:
-                send_encrypted(data_sock, client_key, "500")
+                send_encrypted(data_sock, client_key, "500", digest=digest)
     finally:
         # always clean up: remove the user, tell the others, close sockets
         if username:
@@ -258,7 +278,7 @@ def main():
     # https://docs.python.org/3/library/threading.html#threading.Thread
     try:
         while True:
-            conn, _ = server.accept()
+            conn, addr = server.accept()
             threading.Thread(target=handle_client, args=(conn,), daemon=True).start()
     except KeyboardInterrupt:
         print("\nServer shutting down.")

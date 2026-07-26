@@ -87,7 +87,11 @@ def recv_lines(sock):
 
 def handle_message(text):
     # each decrypted message is the full chat-project format:
-    # status line, empty line, data section if any
+    # status line, empty line, data section if any.
+    # per spec 3c the final data line is the server's SHA256 digest of the
+    # message we sent, delivered as cipher text. it is read as part of the
+    # decrypted response but is not displayed, so every line below is taken
+    # by position and the trailing digest is simply ignored.
     lines = text.split("\n")
     status = lines[0].strip()
     data = lines[2:] if len(lines) >= 3 else []
