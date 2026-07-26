@@ -258,7 +258,7 @@ def main():
     # https://docs.python.org/3/library/threading.html#threading.Thread
     try:
         while True:
-            conn, addr = server.accept()
+            conn, _ = server.accept()
             threading.Thread(target=handle_client, args=(conn,), daemon=True).start()
     except KeyboardInterrupt:
         print("\nServer shutting down.")

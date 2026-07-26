@@ -3,8 +3,11 @@ CNT4713 Cryptography Project - Chat
 
 Group Members
 -------------
-<Name 1>  -  <Panther ID 1>
-<Name 2>  -  <Panther ID 2>
+Jason Balladares - 5760817
+
+Mahadi Rahman - 6406575
+
+Phoenix Depaz - 6234251
 
 Files
 -----
